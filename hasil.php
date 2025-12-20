@@ -67,13 +67,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <div class="card_table">
             <table>
-                <?php foreach ($articles as $row): ?>
+                <thead>
                     <tr>
-                        <td><?php echo $row['Judul']; ?></td>
-                        <td><?php echo $row['Penulis']; ?></td>
-                        <td><?php echo $row['Tahun']; ?></td>
+                        <th>Judul Artikel</th>
+                        <th>Penulis</th>
+                        <th>Tahun</th>
+                        <th>Link</th>
                     </tr>
-                <?php endforeach; ?>
+                </thead>
+                <tbody>
+                    <?php foreach ($articles as $row): ?>
+                        <tr>
+                            <td class="judul"><?php echo $row['judul']; ?></td>
+                            <td><?php echo $row['penulis']; ?></td>
+                            <td><span class="badge"><?php echo $row['tahun']; ?></span></td>
+                            <td><a href="<?php echo $row['link']; ?>" target="_blank" class="link-jurnal">Buka</a></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     </div>
