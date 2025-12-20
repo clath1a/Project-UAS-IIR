@@ -1,3 +1,25 @@
+<?php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $keyword = $_POST['penulis']; // Mengambil input dari form
+
+    $payload = json_encode(array("keyword" => $keyword));
+
+    // Inisialisasi cURL ke Flask
+    $ch = curl_init('http://127.0.0.1:5000/api/scrape');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+
+    $response = curl_exec($ch);
+    $data = json_decode($response, true);
+    curl_close($ch);
+
+    // Sekarang variabel $data berisi info penulis dan daftar artikel
+    $author = $data['author_info'];
+    $articles = $data['articles'];
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -32,15 +54,11 @@
 
             <div class="card_scholar">
                 <div class="profile-header">
-                    <img src="https://via.placeholder.com/100" alt="Foto Penulis" class="profile-img">
+                    <img src="<?php echo $author['photo']; ?>" class="profile-img">
                     <div class="profile-details">
-                        <h4>Joko Siswantoro</h4>
-                        <p class="univ">Universitas Surabaya</p>
-                        <p class="email">Verified email at staff.ubaya.ac.id</p>
-                        <div class="tags">
-                            <span>Artificial Intelligence</span>
-                            <span>Machine Learning</span>
-                        </div>
+                        <h4><?php echo $author['nama']; ?></h4>
+                        <p><?php echo $author['univ']; ?></p>
+                        <p><?php echo $author['email']; ?></p>
                     </div>
                 </div>
             </div>
@@ -49,27 +67,13 @@
 
         <div class="card_table">
             <table>
-                <thead>
+                <?php foreach ($articles as $row): ?>
                     <tr>
-                        <th>Judul Artikel</th>
-                        <th>Penulis</th>
-                        <th>Tanggal Rilis</th>
-                        <th>Nama Jurnal</th>
-                        <th>Link</th>
-                        <th>Nilai Sim</th>
+                        <td><?php echo $row['Judul']; ?></td>
+                        <td><?php echo $row['Penulis']; ?></td>
+                        <td><?php echo $row['Tahun']; ?></td>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="judul">Penerapan Cosine Similarity pada...</td>
-                        <td>Ahmad Fauzi</td>
-                        <td>2023-10-12</td>
-                        <td>Jurnal Informatika</td>
-                        <td><a href="#" class="link-jurnal">Buka</a></td>
-                        <td><span class="badge">0.982</span></td>
-                    </tr>
-                </tbody>
-
+                <?php endforeach; ?>
             </table>
         </div>
     </div>
