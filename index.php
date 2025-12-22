@@ -34,10 +34,19 @@
                     <label>Metode Similarity</label>
                     <div class="radio-container">
                         <label class="radio-item">
-                            <input type="radio" name="similarity" value="cosine"> Cosine Similarity
+                            <input type="radio" name="similarity" value="dice"> Dice Coeffisient
                         </label>
                         <label class="radio-item">
-                            <input type="radio" name="similarity" value="jaccard"> Jaccard Index
+                            <input type="radio" name="similarity" value="jaccard"> Jaccard Coeffisient
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="similarity" value="overlap"> Overlap Coeffisient
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="similarity" value="cosine"> Cosine Coeffisient
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="similarity" value="asymmetric"> Asymmetric Coeffisient
                         </label>
                     </div>
                 </div>
