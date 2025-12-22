@@ -61,29 +61,55 @@ def run_scraper(penulis_input, limit_data):
         # 3. Ambil Artikel dengan Batasan (Limit)
         rows = driver.find_elements(By.CSS_SELECTOR, "tr.gsc_a_tr")
         for row in rows[:limit_data]:  # Memotong jumlah baris sesuai input user
+            # Di dalam loop 'for row in rows[:limit_data]:'
             try:
                 title_elm = row.find_element(By.CSS_SELECTOR, "a.gsc_a_at")
+                detail_url = title_elm.get_attribute("href")
+                
+                # Simpan handle jendela utama
+                main_window = driver.current_window_handle
+
+                # Buka link detail di tab baru agar tidak kehilangan daftar utama
+                driver.execute_script(f"window.open('{detail_url}', '_blank');")
+                driver.switch_to.window(driver.window_handles[1])
+                time.sleep(random.uniform(1, 2)) # Tunggu loading
+
+                # Ambil Tanggal Rilis Lengkap dari halaman detail
+                try:
+                    # Google Scholar menggunakan urutan field yang berbeda, kita cari teks "date"
+                    fields = driver.find_elements(By.CLASS_NAME, "gsc_oci_field")
+                    values = driver.find_elements(By.CLASS_NAME, "gsc_oci_value")
+                    tanggal_lengkap = "-"
+                    
+                    for idx, field in enumerate(fields):
+                        if "date" in field.text.lower():
+                            tanggal_lengkap = values[idx].text # Format: 2020/2/1
+                            break
+                except:
+                    tanggal_lengkap = row.find_element(By.CSS_SELECTOR, "td.gsc_a_y").text
+
+                # Tutup tab detail dan kembali ke tab utama
+                driver.close()
+                driver.switch_to.window(main_window)
+
+                # Proses pembersihan Nama Jurnal (seperti "Energy")
                 gray_elms = row.find_elements(By.CSS_SELECTOR, "div.gs_gray")
                 raw_jurnal = gray_elms[1].text if len(gray_elms) > 1 else "-"
-                step1 = raw_jurnal.split(',')[0].strip()
-                if ' ' in step1:
-                    nama_jurnal_bersih = step1.rsplit(' ', 1)[0]
-                else:
-                    nama_jurnal_bersih = step1
+                jurnal_clean = raw_jurnal.split(',')[0].rsplit(' ', 1)[0] if ' ' in raw_jurnal else raw_jurnal
 
-                data_final["articles"].append(
-                    {
-                        "judul": title_elm.text,
-                        "penulis": gray_elms[0].text if len(gray_elms) > 0 else "-",
-                        "jurnal": nama_jurnal_bersih,
-                        "tahun": row.find_element(By.CSS_SELECTOR, "td.gsc_a_y").text,
-                        "sitasi": row.find_element(
-                            By.CSS_SELECTOR, "a.gsc_a_ac"
-                        ).text,  # Pastikan baris ini ada
-                        "link": title_elm.get_attribute("href"),
-                    }
-                )
-            except:
+                data_final["articles"].append({
+                    "judul": title_elm.text,
+                    "penulis": gray_elms[0].text,
+                    "tanggal": tanggal_lengkap, # Sekarang berisi tanggal lengkap
+                    "jurnal": jurnal_clean,
+                    "sitasi": row.find_element(By.CSS_SELECTOR, "a.gsc_a_ac").text,
+                    "link": detail_url
+                })
+            except Exception as e:
+                # Jika error, pastikan balik ke tab utama
+                if len(driver.window_handles) > 1:
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0])
                 continue
 
     except Exception as e:

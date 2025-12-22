@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <tr>
                                 <td class="judul"><?php echo $row['judul']; ?></td>
                                 <td><?php echo $row['penulis']; ?></td>
-                                <td><span class="badge"><?php echo $row['tahun']; ?></span></td>
+                                <td><span class="badge"><?php echo $row['tanggal']; ?></span></td>
                                 <td><?php echo $row['jurnal']; ?></td>
                                 <td><?php echo $row['sitasi'] ?? '0'; ?></td>
                                 <td>
