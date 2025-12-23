@@ -5,17 +5,16 @@ use Phpml\FeatureExtraction\TokenCountVectorizer;
 use Phpml\Tokenization\WhitespaceTokenizer;
 use Phpml\FeatureExtraction\TfIdfTransformer;
 
-// Inisialisasi variabel agar tidak "Undefined variable" jika request gagal
 $author = ['nama' => '-', 'univ' => '-', 'email' => '-', 'photo' => ''];
 $articles = [];
 $metode_pilihan = $_POST['similarity'] ?? 'cosine';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $penulis = $_POST['penulis'];
-    $keyword_query = $_POST['keyword']; // Variabel query yang benar
+    $keyword_query = $_POST['keyword'];
     $jumlah_data = $_POST['jumlah'];
 
-    // --- 1. Komunikasi dengan Flask (Python) ---
+    // --- 1. Ambil Data dari Python (Flask) ---
     $payload = json_encode(array(
         "penulis" => $penulis,
         "keyword" => $keyword_query,
@@ -26,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-
     $response = curl_exec($ch);
     $result = json_decode($response, true);
     curl_close($ch);
@@ -36,15 +34,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $articles = $result['articles'];
     }
 
-    // Hanya jalankan similarity jika ada artikel yang ditemukan
+    // --- 2. Perhitungan Similarity (Hanya jika data ada) ---
     if (!empty($articles)) {
-        // --- 2. Vektorisasi Teks (Judul Artikel + Keyword Query) ---
         $corpus = [];
         foreach ($articles as $row) {
-            $corpus[] = strtolower($row['judul']);
+            // PENTING: Gunakan judul_cleaned dari Python agar akurasi NLTK masuk ke hitungan
+            $corpus[] = $row['judul_cleaned'];
         }
-        $corpus[] = strtolower($keyword_query); // Gunakan keyword_query dari POST
+        // Tambahkan keyword query (diproses lowercase agar adil)
+        $corpus[] = strtolower($keyword_query);
 
+        // Proses TF-IDF
         $vectorizer = new TokenCountVectorizer(new WhitespaceTokenizer());
         $vectorizer->fit($corpus);
         $vectorizer->transform($corpus);
@@ -54,9 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $sample_data = $corpus;
         $total = count($sample_data);
-        $q_index = $total - 1;
+        $q_index = $total - 1; // Index baris Keyword
 
-        // --- 3. Looping Perhitungan Similarity ---
         foreach ($articles as $i => &$article) {
             $numerator = 0.0;
             $denom_wkq = 0.0;
@@ -104,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         unset($article);
 
-        // Sorting: Terbesar ke terkecil agar tidak error usort
+        // Sorting Berdasarkan Skor Tertinggi
         usort($articles, function ($a, $b) {
             return $b['similarity_score'] <=> $a['similarity_score'];
         });

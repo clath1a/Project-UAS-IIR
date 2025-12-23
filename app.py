@@ -7,9 +7,46 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import random
+import re
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+
+# Download resource NLTK
+nltk.download('punkt')
+
+# Inisialisasi Stemmer
+english_stemmer = PorterStemmer()
+factory = StemmerFactory()
+indonesian_stemmer = factory.create_stemmer()
 
 app = Flask(__name__)
 
+def preprocess_text(text):
+    """
+    Fungsi untuk membersihkan teks, tokenisasi, dan stemming 
+    untuk kedua bahasa (Hybrid).
+    """
+    # 1. Case Folding & Remove Special Characters
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', '', text) 
+    
+    # 2. Tokenization
+    tokens = word_tokenize(text)
+    
+    # 3. Stemming (Hybrid approach)
+    # Karena kita tidak tahu bahasa per kata, kita jalankan keduanya
+    # atau prioritaskan salah satu.
+    stemmed_tokens = []
+    for token in tokens:
+        # Jalankan Indonesian Stemmer
+        stemmed = indonesian_stemmer.stem(token)
+        # Jalankan English Stemmer pada hasil sebelumnya
+        stemmed = english_stemmer.stem(stemmed)
+        stemmed_tokens.append(stemmed)
+        
+    return " ".join(stemmed_tokens)
 
 def run_scraper(penulis_input, limit_data):
     # --- SETUP CHROME OPTIONS ---
@@ -64,8 +101,12 @@ def run_scraper(penulis_input, limit_data):
             # Di dalam loop 'for row in rows[:limit_data]:'
             try:
                 title_elm = row.find_element(By.CSS_SELECTOR, "a.gsc_a_at")
-                detail_url = title_elm.get_attribute("href")
+                judul_asli = title_elm.text
                 
+                # --- PROSES PRE-PROCESSING ---
+                judul_processed = preprocess_text(judul_asli)
+                
+                detail_url = title_elm.get_attribute("href")
                 # Simpan handle jendela utama
                 main_window = driver.current_window_handle
 
@@ -98,7 +139,8 @@ def run_scraper(penulis_input, limit_data):
                 jurnal_clean = raw_jurnal.split(',')[0].rsplit(' ', 1)[0] if ' ' in raw_jurnal else raw_jurnal
 
                 data_final["articles"].append({
-                    "judul": title_elm.text,
+                    "judul": judul_asli,           # Judul asli untuk tampilan tabel
+                    "judul_cleaned": judul_processed,
                     "penulis": gray_elms[0].text,
                     "tanggal": tanggal_lengkap, # Sekarang berisi tanggal lengkap
                     "jurnal": jurnal_clean,
