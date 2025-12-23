@@ -12,9 +12,15 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from googletrans import Translator
+
+# Inisialisasi
+translator = Translator()
+english_stemmer = PorterStemmer()
+indonesian_stemmer = StemmerFactory().create_stemmer()
 
 # Download resource NLTK
-nltk.download('punkt')
+nltk.download("punkt")
 
 # Inisialisasi Stemmer
 english_stemmer = PorterStemmer()
@@ -23,18 +29,42 @@ indonesian_stemmer = factory.create_stemmer()
 
 app = Flask(__name__)
 
-def preprocess_text(text):
+
+def preprocess_hybrid(text):
+    # 1. Cleaning
+    text = text.lower()
+    text = re.sub(r"[^a-z\s]", "", text)
+
+    # 2. Deteksi Bahasa menggunakan Googletrans
+    try:
+        lang = translator.detect(text).lang
+    except:
+        lang = "en"  # Default jika gagal deteksi
+
+    tokens = word_tokenize(text)
+    stemmed_tokens = []
+
+    # 3. Pemilihan Stemmer berdasarkan bahasa yang terdeteksi
+    for token in tokens:
+        if lang == "id":
+            # Jika terdeteksi Indonesia, gunakan Sastrawi
+            stemmed_tokens.append(indonesian_stemmer.stem(token))
+        else:
+            # Jika terdeteksi Inggris (atau lainnya), gunakan Porter (NLTK)
+            stemmed_tokens.append(english_stemmer.stem(token))
+
+    return " ".join(stemmed_tokens)
     """
     Fungsi untuk membersihkan teks, tokenisasi, dan stemming 
     untuk kedua bahasa (Hybrid).
     """
     # 1. Case Folding & Remove Special Characters
     text = text.lower()
-    text = re.sub(r'[^a-z\s]', '', text) 
-    
+    text = re.sub(r"[^a-z\s]", "", text)
+
     # 2. Tokenization
     tokens = word_tokenize(text)
-    
+
     # 3. Stemming (Hybrid approach)
     # Karena kita tidak tahu bahasa per kata, kita jalankan keduanya
     # atau prioritaskan salah satu.
@@ -45,8 +75,9 @@ def preprocess_text(text):
         # Jalankan English Stemmer pada hasil sebelumnya
         stemmed = english_stemmer.stem(stemmed)
         stemmed_tokens.append(stemmed)
-        
+
     return " ".join(stemmed_tokens)
+
 
 def run_scraper(penulis_input, limit_data):
     # --- SETUP CHROME OPTIONS ---
@@ -102,10 +133,10 @@ def run_scraper(penulis_input, limit_data):
             try:
                 title_elm = row.find_element(By.CSS_SELECTOR, "a.gsc_a_at")
                 judul_asli = title_elm.text
-                
+
                 # --- PROSES PRE-PROCESSING ---
-                judul_processed = preprocess_text(judul_asli)
-                
+                judul_processed = preprocess_hybrid(judul_asli)
+
                 detail_url = title_elm.get_attribute("href")
                 # Simpan handle jendela utama
                 main_window = driver.current_window_handle
@@ -113,7 +144,7 @@ def run_scraper(penulis_input, limit_data):
                 # Buka link detail di tab baru agar tidak kehilangan daftar utama
                 driver.execute_script(f"window.open('{detail_url}', '_blank');")
                 driver.switch_to.window(driver.window_handles[1])
-                time.sleep(random.uniform(1, 2)) # Tunggu loading
+                time.sleep(random.uniform(1, 2))  # Tunggu loading
 
                 # Ambil Tanggal Rilis Lengkap dari halaman detail
                 try:
@@ -121,13 +152,15 @@ def run_scraper(penulis_input, limit_data):
                     fields = driver.find_elements(By.CLASS_NAME, "gsc_oci_field")
                     values = driver.find_elements(By.CLASS_NAME, "gsc_oci_value")
                     tanggal_lengkap = "-"
-                    
+
                     for idx, field in enumerate(fields):
                         if "date" in field.text.lower():
-                            tanggal_lengkap = values[idx].text # Format: 2020/2/1
+                            tanggal_lengkap = values[idx].text  # Format: 2020/2/1
                             break
                 except:
-                    tanggal_lengkap = row.find_element(By.CSS_SELECTOR, "td.gsc_a_y").text
+                    tanggal_lengkap = row.find_element(
+                        By.CSS_SELECTOR, "td.gsc_a_y"
+                    ).text
 
                 # Tutup tab detail dan kembali ke tab utama
                 driver.close()
@@ -136,17 +169,23 @@ def run_scraper(penulis_input, limit_data):
                 # Proses pembersihan Nama Jurnal (seperti "Energy")
                 gray_elms = row.find_elements(By.CSS_SELECTOR, "div.gs_gray")
                 raw_jurnal = gray_elms[1].text if len(gray_elms) > 1 else "-"
-                jurnal_clean = raw_jurnal.split(',')[0].rsplit(' ', 1)[0] if ' ' in raw_jurnal else raw_jurnal
+                jurnal_clean = (
+                    raw_jurnal.split(",")[0].rsplit(" ", 1)[0]
+                    if " " in raw_jurnal
+                    else raw_jurnal
+                )
 
-                data_final["articles"].append({
-                    "judul": judul_asli,           # Judul asli untuk tampilan tabel
-                    "judul_cleaned": judul_processed,
-                    "penulis": gray_elms[0].text,
-                    "tanggal": tanggal_lengkap, # Sekarang berisi tanggal lengkap
-                    "jurnal": jurnal_clean,
-                    "sitasi": row.find_element(By.CSS_SELECTOR, "a.gsc_a_ac").text,
-                    "link": detail_url
-                })
+                data_final["articles"].append(
+                    {
+                        "judul": judul_asli,  # Judul asli untuk tampilan tabel
+                        "judul_cleaned": judul_processed,
+                        "penulis": gray_elms[0].text,
+                        "tanggal": tanggal_lengkap,  # Sekarang berisi tanggal lengkap
+                        "jurnal": jurnal_clean,
+                        "sitasi": row.find_element(By.CSS_SELECTOR, "a.gsc_a_ac").text,
+                        "link": detail_url,
+                    }
+                )
             except Exception as e:
                 # Jika error, pastikan balik ke tab utama
                 if len(driver.window_handles) > 1:

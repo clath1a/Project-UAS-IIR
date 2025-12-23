@@ -148,43 +148,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
 
         <div class="card_table">
-            <h3>Hasil Analisis Similarity (Limit: <?php echo htmlspecialchars($_POST['jumlah'] ?? '0'); ?> Data)</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>Judul Artikel</th>
+                        <th>Judul (Pre-processed)</th>
                         <th>Penulis</th>
                         <th>Tanggal Rilis</th>
                         <th>Nama Jurnal</th>
-                        <th>Jumlah Sitasi</th>
-                        <th>Link Jurnal</th>
-                        <th>Nilai Similaritas</th>
+                        <th>Sitasi</th>
+                        <th>Link</th>
+                        <th>Similaritas</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (!empty($articles)): ?>
-                        <?php foreach ($articles as $row): ?>
-                            <tr>
-                                <td class="judul"><?php echo $row['judul']; ?></td>
-                                <td><?php echo $row['penulis']; ?></td>
-                                <td><span class="badge"><?php echo $row['tanggal']; ?></span></td>
-                                <td><?php echo $row['jurnal']; ?></td>
-                                <td><?php echo $row['sitasi'] ?? '0'; ?></td>
-                                <td>
-                                    <a href="<?php echo $row['link']; ?>" target="_blank" class="link-jurnal" style="font-size: 11px; word-break: break-all;">
-                                        <?php echo $row['link']; ?>
-                                    </a>
-                                </td>
-                                <td style="font-weight: bold; color: #2973B2;">
-                                    <?php echo $row['similarity_score']; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
+                    <?php foreach ($articles as $row): ?>
                         <tr>
-                            <td colspan="7" style="text-align:center;">Data tidak ditemukan atau Flask belum menyala.</td>
+                            <td class="judul">
+                                <div style="color: #2973B2; font-weight: 600;">
+                                    <?php echo $row['judul_cleaned']; ?>
+                                </div>
+                                <small style="color: #7f8c8d; display: block; margin-top: 4px;">
+                                    Original: <?php echo $row['judul']; ?>
+                                </small>
+                            </td>
+                            <td><?php echo $row['penulis']; ?></td>
+                            <td><span class="badge"><?php echo $row['tanggal']; ?></span></td>
+                            <td><?php echo $row['jurnal']; ?></td>
+                            <td><?php echo $row['sitasi']; ?></td>
+                            <td><a href="<?php echo $row['link']; ?>" target="_blank">Buka</a></td>
+                            <td style="font-weight: bold; color: #2973B2;">
+                                <?php echo $row['similarity_score']; ?>
+                            </td>
                         </tr>
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
