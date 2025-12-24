@@ -54,6 +54,7 @@ def preprocess_hybrid(text):
             stemmed_tokens.append(english_stemmer.stem(token))
 
     return " ".join(stemmed_tokens)
+
     """
     Fungsi untuk membersihkan teks, tokenisasi, dan stemming 
     untuk kedua bahasa (Hybrid).
@@ -205,6 +206,7 @@ def run_scraper(penulis_input, limit_data):
 def scrape_api():
     data = request.json
     penulis = data.get("penulis", "")
+    keyword_input = data.get("keyword", "")
     # Ambil jumlah data dari PHP, default ke 5 jika tidak ada
     jumlah = int(data.get("jumlah", 5))
 
@@ -216,12 +218,13 @@ def scrape_api():
     try:
         # Jalankan scraping dinamis
         hasil = run_scraper(penulis, jumlah)
-
+        keyword_cleaned = preprocess_hybrid(keyword_input) if keyword_input else ""
         return jsonify(
             {
                 "status": "success",
                 "author_info": hasil["author"],
                 "articles": hasil["articles"],
+                "keyword_cleaned": keyword_cleaned
             }
         )
     except Exception as e:

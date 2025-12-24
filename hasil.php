@@ -7,6 +7,7 @@ use Phpml\FeatureExtraction\TfIdfTransformer;
 
 $author = ['nama' => '-', 'univ' => '-', 'email' => '-', 'photo' => ''];
 $articles = [];
+$keyword_cleaned = "";
 $metode_pilihan = $_POST['similarity'] ?? 'cosine';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -32,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($result && isset($result['status']) && $result['status'] == 'success') {
         $author = $result['author_info'];
         $articles = $result['articles'];
+        $keyword_cleaned = $result['keyword_cleaned'] ?? strtolower($keyword_query);
     }
 
     // --- 2. Perhitungan Similarity (Hanya jika data ada) ---
@@ -41,8 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // PENTING: Gunakan judul_cleaned dari Python agar akurasi NLTK masuk ke hitungan
             $corpus[] = $row['judul_cleaned'];
         }
-        // Tambahkan keyword query (diproses lowercase agar adil)
-        $corpus[] = strtolower($keyword_query);
+        // Tambahkan keyword cleaned yg sudah dipreprocessed
+        $corpus[] = $keyword_cleaned;
 
         // Proses TF-IDF
         $vectorizer = new TokenCountVectorizer(new WhitespaceTokenizer());
@@ -165,11 +167,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <tr>
                             <td class="judul">
                                 <div style="color: #2973B2; font-weight: 600;">
-                                    <?php echo $row['judul_cleaned']; ?>
+                                    <?php echo $row['judul']; ?>
                                 </div>
-                                <small style="color: #7f8c8d; display: block; margin-top: 4px;">
+                                <!-- <small style="color: #7f8c8d; display: block; margin-top: 4px;">
                                     Original: <?php echo $row['judul']; ?>
-                                </small>
+                                </small> -->
                             </td>
                             <td><?php echo $row['penulis']; ?></td>
                             <td><span class="badge"><?php echo $row['tanggal']; ?></span></td>
