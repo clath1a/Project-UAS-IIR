@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $keyword_query = $_POST['keyword'];
     $jumlah_data = $_POST['jumlah'];
 
-    // --- 1. Ambil Data dari Python (Flask) ---
+    // ambil data dari python 
     $payload = json_encode(array(
         "penulis" => $penulis,
         "keyword" => $keyword_query,
@@ -36,14 +36,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $keyword_cleaned = $result['keyword_cleaned'] ?? strtolower($keyword_query);
     }
 
-    // --- 2. Perhitungan Similarity (Hanya jika data ada) ---
+    // similarity calculations
     if (!empty($articles)) {
         $corpus = [];
         foreach ($articles as $row) {
-            // PENTING: Gunakan judul_cleaned dari Python agar akurasi NLTK masuk ke hitungan
+            // judul_cleaned hasil preprocessing dimasukkan ke array 
             $corpus[] = $row['judul_cleaned'];
         }
-        // Tambahkan keyword cleaned yg sudah dipreprocessed
+        // keyword cleaned yg sudah dipreprocessed dimasukkan ke array sehingga berada di index terahkir
         $corpus[] = $keyword_cleaned;
 
         // Proses TF-IDF
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $sample_data = $corpus;
         $total = count($sample_data);
-        $q_index = $total - 1; // Index baris Keyword
+        $q_index = $total - 1; // Index baris Keyword (index terakhir)
 
         foreach ($articles as $i => &$article) {
             $numerator = 0.0;
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         unset($article);
 
-        // Sorting Berdasarkan Skor Tertinggi
+        // sorting skor similarity tertinggi
         usort($articles, function ($a, $b) {
             return $b['similarity_score'] <=> $a['similarity_score'];
         });
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <table>
                 <thead>
                     <tr>
-                        <th>Judul (Pre-processed)</th>
+                        <th>Judul</th>
                         <th>Penulis</th>
                         <th>Tanggal Rilis</th>
                         <th>Nama Jurnal</th>

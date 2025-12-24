@@ -31,26 +31,26 @@ app = Flask(__name__)
 
 
 def preprocess_hybrid(text):
-    # 1. Cleaning
+    # pembersihan sederhana, kapital ke huruf kecil dan cleaning simbol
     text = text.lower()
     text = re.sub(r"[^a-z\s]", "", text)
 
-    # 2. Deteksi Bahasa menggunakan Googletrans
+    # mendeteksi bahasa dengan googletrans
     try:
         lang = translator.detect(text).lang
     except:
-        lang = "en"  # Default jika gagal deteksi
+        lang = "en"  # Default english jika gagal deteksi
 
     tokens = word_tokenize(text)
     stemmed_tokens = []
 
-    # 3. Pemilihan Stemmer berdasarkan bahasa yang terdeteksi
+    # logika if untuk memilih Stemmer berdasarkan bahasa yang terdeteksi
     for token in tokens:
         if lang == "id":
-            # Jika terdeteksi Indonesia, gunakan Sastrawi
+            # Jika terdeteksi Indonesia = Sastrawi
             stemmed_tokens.append(indonesian_stemmer.stem(token))
         else:
-            # Jika terdeteksi Inggris (atau lainnya), gunakan Porter (NLTK)
+            # Jika terdeteksi Inggris = Porter (NLTK)
             stemmed_tokens.append(english_stemmer.stem(token))
 
     return " ".join(stemmed_tokens)
@@ -81,14 +81,14 @@ def preprocess_hybrid(text):
 
 
 def run_scraper(penulis_input, limit_data):
-    # --- SETUP CHROME OPTIONS ---
+    # SETUP CHROME OPTIONS 
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
 
-    # User-Agent asli agar tidak diblokir Google
+    # menggunakan useragent asli agar tidak diblokir google
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     chrome_options.add_argument(f"user-agent={user_agent}")
 
@@ -96,19 +96,19 @@ def run_scraper(penulis_input, limit_data):
         service=ChromeService(ChromeDriverManager().install()), options=chrome_options
     )
 
-    # Inisialisasi data yang akan dikirim balik
+    # inisialisasi data
     data_final = {
         "author": {"nama": "-", "univ": "-", "email": "-", "photo": ""},
         "articles": [],
     }
 
     try:
-        # 1. Cari Profil Penulis
+        # utk cari profile penulis
         search_url = f"https://scholar.google.com/scholar?hl=en&q={penulis_input.replace(' ', '+')}"
         driver.get(search_url)
         time.sleep(random.uniform(2, 4))
 
-        # Ambil link profil dari hasil pencarian pertama
+        # get link profile dari hasil search pertama
         profile_elm = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "h4.gs_rt2 a"))
         )
@@ -116,7 +116,7 @@ def run_scraper(penulis_input, limit_data):
         if "scholar.google.com" not in full_profile_url:
             full_profile_url = "https://scholar.google.com" + full_profile_url
 
-        # 2. Masuk ke Halaman Profil & Ambil Biodata
+        # mengabmil biodata dengan cara masuk ke link tsb
         driver.get(full_profile_url)
         time.sleep(random.uniform(3, 5))
 
@@ -127,47 +127,44 @@ def run_scraper(penulis_input, limit_data):
             "email": driver.find_element(By.ID, "gsc_prf_ivh").text,
         }
 
-        # 3. Ambil Artikel dengan Batasan (Limit)
+        # mengambil artikel dengan limit
         rows = driver.find_elements(By.CSS_SELECTOR, "tr.gsc_a_tr")
-        for row in rows[:limit_data]:  # Memotong jumlah baris sesuai input user
-            # Di dalam loop 'for row in rows[:limit_data]:'
+        for row in rows[:limit_data]:  # memotong jumlah baris sesuai input user
             try:
                 title_elm = row.find_element(By.CSS_SELECTOR, "a.gsc_a_at")
                 judul_asli = title_elm.text
 
-                # --- PROSES PRE-PROCESSING ---
+                # PRE-PROCESSING
                 judul_processed = preprocess_hybrid(judul_asli)
-
                 detail_url = title_elm.get_attribute("href")
-                # Simpan handle jendela utama
                 main_window = driver.current_window_handle
 
-                # Buka link detail di tab baru agar tidak kehilangan daftar utama
+                # membuka link detail di tab baru, agar tidak kehilangan daftar utama
                 driver.execute_script(f"window.open('{detail_url}', '_blank');")
                 driver.switch_to.window(driver.window_handles[1])
-                time.sleep(random.uniform(1, 2))  # Tunggu loading
+                time.sleep(random.uniform(1, 2))  # harus menunggu loading selesai
 
-                # Ambil Tanggal Rilis Lengkap dari halaman detail
+                # crawl tanggal rilis
                 try:
-                    # Google Scholar menggunakan urutan field yang berbeda, kita cari teks "date"
+                    # cari teks "date"
                     fields = driver.find_elements(By.CLASS_NAME, "gsc_oci_field")
                     values = driver.find_elements(By.CLASS_NAME, "gsc_oci_value")
                     tanggal_lengkap = "-"
 
                     for idx, field in enumerate(fields):
                         if "date" in field.text.lower():
-                            tanggal_lengkap = values[idx].text  # Format: 2020/2/1
+                            tanggal_lengkap = values[idx].text  
                             break
                 except:
                     tanggal_lengkap = row.find_element(
                         By.CSS_SELECTOR, "td.gsc_a_y"
                     ).text
 
-                # Tutup tab detail dan kembali ke tab utama
+                # close tab detail dan kembali
                 driver.close()
                 driver.switch_to.window(main_window)
 
-                # Proses pembersihan Nama Jurnal (seperti "Energy")
+                # pembersihan nama journal
                 gray_elms = row.find_elements(By.CSS_SELECTOR, "div.gs_gray")
                 raw_jurnal = gray_elms[1].text if len(gray_elms) > 1 else "-"
                 jurnal_clean = (
@@ -178,10 +175,10 @@ def run_scraper(penulis_input, limit_data):
 
                 data_final["articles"].append(
                     {
-                        "judul": judul_asli,  # Judul asli untuk tampilan tabel
+                        "judul": judul_asli,  
                         "judul_cleaned": judul_processed,
                         "penulis": gray_elms[0].text,
-                        "tanggal": tanggal_lengkap,  # Sekarang berisi tanggal lengkap
+                        "tanggal": tanggal_lengkap, 
                         "jurnal": jurnal_clean,
                         "sitasi": row.find_element(By.CSS_SELECTOR, "a.gsc_a_ac").text,
                         "link": detail_url,
@@ -207,7 +204,7 @@ def scrape_api():
     data = request.json
     penulis = data.get("penulis", "")
     keyword_input = data.get("keyword", "")
-    # Ambil jumlah data dari PHP, default ke 5 jika tidak ada
+    # get jumlah data dari PHP, default = 5 jika user tidak input
     jumlah = int(data.get("jumlah", 5))
 
     if not penulis:
@@ -216,7 +213,6 @@ def scrape_api():
     print(f"Mencari {jumlah} data untuk: {penulis}")
 
     try:
-        # Jalankan scraping dinamis
         hasil = run_scraper(penulis, jumlah)
         keyword_cleaned = preprocess_hybrid(keyword_input) if keyword_input else ""
         return jsonify(
