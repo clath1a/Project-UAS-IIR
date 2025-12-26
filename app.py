@@ -10,73 +10,65 @@ import random
 import re
 import nltk
 from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
+from nltk.stem import SnowballStemmer
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
-from googletrans import Translator
+from langdetect import detect, LangDetectException
 
-# Inisialisasi
-translator = Translator()
-english_stemmer = PorterStemmer()
+try:
+    nltk.data.find("tokenizers/punkt")
+except LookupError:
+    nltk.download("punkt")
+
+try:
+    nltk.data.find("tokenizers/punkt_tab")
+except LookupError:
+    nltk.download("punkt_tab")
+
+# Inisialisasi translator
 indonesian_stemmer = StemmerFactory().create_stemmer()
-
-# Download resource NLTK
-nltk.download("punkt")
-
-# Inisialisasi Stemmer
-english_stemmer = PorterStemmer()
-factory = StemmerFactory()
-indonesian_stemmer = factory.create_stemmer()
+SNOWBALL_LANG_MAP = {
+    "en": "english",
+    "fr": "french",
+    "de": "german",
+    "es": "spanish",
+    "nl": "dutch",
+    "it": "italian",
+    "pt": "portuguese",
+    "ru": "russian",
+}
 
 app = Flask(__name__)
 
 
 def preprocess_hybrid(text):
+    if not text: return ""
+
     # pembersihan sederhana, kapital ke huruf kecil dan cleaning simbol
     text = text.lower()
     text = re.sub(r"[^a-z\s]", "", text)
 
     # mendeteksi bahasa dengan googletrans
     try:
-        lang = translator.detect(text).lang
-    except:
-        lang = "en"  # Default english jika gagal deteksi
+        lang_code = detect(text)
+    except LangDetectException:
+        lang_code = "en"  # Default english jika gagal deteksi
 
     tokens = word_tokenize(text)
     stemmed_tokens = []
 
     # logika if untuk memilih Stemmer berdasarkan bahasa yang terdeteksi
-    for token in tokens:
-        if lang == "id":
-            # Jika terdeteksi Indonesia = Sastrawi
+    if lang_code == "id": #pakai sastrawi
+        for token in tokens:
             stemmed_tokens.append(indonesian_stemmer.stem(token))
-        else:
-            # Jika terdeteksi Inggris = Porter (NLTK)
-            stemmed_tokens.append(english_stemmer.stem(token))
 
-    return " ".join(stemmed_tokens)
+    elif lang_code in SNOWBALL_LANG_MAP: #bahasa english & eropa lain pakai snowball sesuai languagenya
+        snowball = SnowballStemmer(SNOWBALL_LANG_MAP[lang_code])
+        for token in tokens:
+            stemmed_tokens.append(snowball.stem(token))
 
-    """
-    Fungsi untuk membersihkan teks, tokenisasi, dan stemming 
-    untuk kedua bahasa (Hybrid).
-    """
-    # 1. Case Folding & Remove Special Characters
-    text = text.lower()
-    text = re.sub(r"[^a-z\s]", "", text)
-
-    # 2. Tokenization
-    tokens = word_tokenize(text)
-
-    # 3. Stemming (Hybrid approach)
-    # Karena kita tidak tahu bahasa per kata, kita jalankan keduanya
-    # atau prioritaskan salah satu.
-    stemmed_tokens = []
-    for token in tokens:
-        # Jalankan Indonesian Stemmer
-        stemmed = indonesian_stemmer.stem(token)
-        # Jalankan English Stemmer pada hasil sebelumnya
-        stemmed = english_stemmer.stem(stemmed)
-        stemmed_tokens.append(stemmed)
-
+    else: #tokenize apa adanya
+        stemmed_tokens = tokens
+        
     return " ".join(stemmed_tokens)
 
 
@@ -156,9 +148,7 @@ def run_scraper(penulis_input, limit_data):
                             tanggal_lengkap = values[idx].text  
                             break
                 except:
-                    tanggal_lengkap = row.find_element(
-                        By.CSS_SELECTOR, "td.gsc_a_y"
-                    ).text
+                    tanggal_lengkap = row.find_element(By.CSS_SELECTOR, "td.gsc_a_y").text
 
                 # close tab detail dan kembali
                 driver.close()
@@ -224,6 +214,10 @@ def scrape_api():
             }
         )
     except Exception as e:
+        print("ERROR in /api/scrape:")
+        print(e)
+        import traceback
+        traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
