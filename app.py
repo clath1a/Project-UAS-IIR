@@ -26,19 +26,8 @@ except LookupError:
 
 # Inisialisasi translator
 indonesian_stemmer = StemmerFactory().create_stemmer()
-SNOWBALL_LANG_MAP = {
-    "en": "english",
-    "fr": "french",
-    "de": "german",
-    "es": "spanish",
-    "nl": "dutch",
-    "it": "italian",
-    "pt": "portuguese",
-    "ru": "russian",
-}
 
 app = Flask(__name__)
-
 
 def preprocess_hybrid(text):
     if not text: return ""
@@ -53,6 +42,7 @@ def preprocess_hybrid(text):
     except LangDetectException:
         lang_code = "en"  # Default english jika gagal deteksi
 
+    
     tokens = word_tokenize(text)
     stemmed_tokens = []
 
@@ -61,13 +51,10 @@ def preprocess_hybrid(text):
         for token in tokens:
             stemmed_tokens.append(indonesian_stemmer.stem(token))
 
-    elif lang_code in SNOWBALL_LANG_MAP: #bahasa english & eropa lain pakai snowball sesuai languagenya
-        snowball = SnowballStemmer(SNOWBALL_LANG_MAP[lang_code])
+    else: #tokenize apa adanya
+        snowball = SnowballStemmer("english")
         for token in tokens:
             stemmed_tokens.append(snowball.stem(token))
-
-    else: #tokenize apa adanya
-        stemmed_tokens = tokens
         
     return " ".join(stemmed_tokens)
 
@@ -75,7 +62,7 @@ def preprocess_hybrid(text):
 def run_scraper(penulis_input, limit_data):
     # SETUP CHROME OPTIONS 
     chrome_options = webdriver.ChromeOptions()
-    # chrome_options.add_argument("--headless=new")
+    #chrome_options.add_argument("--headless=new")
     
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")

@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     if ($sum_q != 0) $result = $sum_min / $sum_q;
                     break;
             }
-            $article['similarity_score'] = round($result, 3);
+            $article['similarity_score'] = round($result,7);
         }
         unset($article);
 
